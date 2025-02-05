@@ -1,0 +1,5 @@
+train: piso_tatil_yolov5_PDI\datasets\images\train
+val: piso_tatil_yolov5_PDI\datasets\images\val
+
+nc: 1  # Número de classes (apenas piso tátil)
+names: ['piso_tatil']
