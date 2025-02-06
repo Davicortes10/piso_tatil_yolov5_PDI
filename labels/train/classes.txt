@@ -1,0 +1,7 @@
+frente
+parar
+direita
+esquerda
+vegetacao
+placa_danificada
+placa_faltante
