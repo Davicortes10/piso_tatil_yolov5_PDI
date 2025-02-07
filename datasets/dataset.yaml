@@ -1,5 +1,5 @@
-train: piso_tatil_yolov5_PDI\datasets\images\train
-val: piso_tatil_yolov5_PDI\datasets\images\val
+train: C:/PDI/piso_tatil_yolov5_PDI/datasets/images/train
+val: "C:/PDI/piso_tatil_yolov5_PDI/datasets/images/val"
 
 nc: 7  # Número de classes
 names: ['frente', 'esquerda', 'direita', 'parar', 'placa_danificada', 'placa_faltante', 'vegetacao']
