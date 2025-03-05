@@ -1,5 +1,0 @@
-frente
-parar
-direita
-placa_faltante
-esquerda
