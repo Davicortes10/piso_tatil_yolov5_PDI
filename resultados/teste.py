@@ -38,10 +38,11 @@ def detect_piso_tatil(image_path, model_path="/home/davicortes_oliveira1/piso_ta
     if image is None:
         raise FileNotFoundError(f"❌ Imagem não encontrada: {image_path}")
 
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    image_resized = cv2.resize(image_rgb, (640, 640))
-    image_transposed = np.transpose(image_resized, (2, 0, 1))  # (Altura, Largura, Canais) -> (Canais, Altura, Largura)
-    image_input = np.expand_dims(image_transposed / 255.0, axis=0).astype(np.float32)  # Normalização
+    # Ajustando a imagem para o formato do modelo
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Converte para RGB
+    image_resized = cv2.resize(image_rgb, (640, 640))  # Redimensiona para 640x640
+    image_transposed = np.transpose(image_resized, (2, 0, 1))  # Reorganiza para (C, H, W)
+    image_input = np.expand_dims(image_transposed, axis=0).astype(np.float32) / 255.0  # Normaliza
 
     print("🟢 Imagem pré-processada com sucesso!")
 
@@ -64,35 +65,43 @@ def detect_piso_tatil(image_path, model_path="/home/davicortes_oliveira1/piso_ta
 
         print("📊 Processando detecções...")
         for detection in output_data[0]:
-            confidence = detection[4]
+            confidence = detection[4]  # Confiança da detecção
             if confidence > confidence_threshold:
-                x_center, y_center, w, h = detection[:4]
-                x1, y1 = int((x_center - w / 2) * width), int((y_center - h / 2) * height)
-                x2, y2 = int((x_center + w / 2) * width), int((y_center + h / 2) * height)
+                x_center, y_center, w, h = detection[:4]  # Coordenadas normalizadas
+
+                # Converter para coordenadas de pixel da imagem original
+                x1 = int((x_center - w / 2) * width)
+                y1 = int((y_center - h / 2) * height)
+                x2 = int((x_center + w / 2) * width)
+                y2 = int((y_center + h / 2) * height)
+
                 detections.append((x1, y1, x2, y2, confidence))
-        
+
         print(f"📸 {len(detections)} objetos detectados acima de {confidence_threshold * 100:.0f}% confiança")
         return detections
 
     # Obter detecções
-    detections = process_detections(output_data, image.shape)
+    detections = process_detections(output_data, (640, 640, 3))  # Como foi redimensionada para 640x640
 
-    # Verifica se alguma detecção foi encontrada
-    if not detections:
-        print("⚠️ Nenhuma detecção encontrada. A imagem será salva sem alterações.")
+    # Criar cópia da imagem para desenhar as detecções
+    image_draw = cv2.resize(image_rgb, (640, 640))  # Garante que esteja do tamanho correto
 
     # Desenhar as detecções na imagem
-    for (x1, y1, x2, y2, conf) in detections:
-        cv2.rectangle(image_rgb, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.putText(image_rgb, f"Piso Tátil {conf:.2f}", (x1, y1 - 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-    
+    if not detections:
+        print("⚠️ Nenhuma detecção encontrada. A imagem será salva sem alterações.")
+    else:
+        print("🖍️ Desenhando caixas de detecção...")
+        for (x1, y1, x2, y2, conf) in detections:
+            cv2.rectangle(image_draw, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(image_draw, f"Piso Tátil {conf:.2f}", (x1, y1 - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
     # Criar diretório de saída se não existir
     os.makedirs(output_dir, exist_ok=True)
 
     # Salvar a imagem processada
     output_path = os.path.join(output_dir, os.path.basename(image_path))
-    cv2.imwrite(output_path, cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR))
+    cv2.imwrite(output_path, cv2.cvtColor(image_draw, cv2.COLOR_RGB2BGR))
     print(f"✅ Imagem com detecções salva em: {output_path}")
 
 
