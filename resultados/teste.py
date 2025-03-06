@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import tensorflow as tf
 
-def detect_piso_tatil(image_path, model_path="yolov5_tf_select.tflite", output_dir="resultados", confidence_threshold=0.5):
+def detect_piso_tatil(image_path, model_path="/home/davicortes_oliveira1/piso_tatil_yolov5_PDI/yolov5_tf_select.tflite", output_dir="/home/davicortes_oliveira1/piso_tatil_yolov5_PDI/resultados", confidence_threshold=0.5):
     """
     Detecta piso tátil em uma imagem usando um modelo YOLOv5 convertido para TensorFlow Lite e salva o resultado.
 
@@ -78,4 +78,4 @@ def detect_piso_tatil(image_path, model_path="yolov5_tf_select.tflite", output_d
 
 # 🟢 Exemplo de uso:
 if __name__ == "__main__":
-    detect_piso_tatil("datasets/images/train/Frame 95.png")
+    detect_piso_tatil("/home/davicortes_oliveira1/piso_tatil_yolov5_PDI/datasets/images/train/Frame 95.png")
