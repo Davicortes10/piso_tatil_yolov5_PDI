@@ -1,5 +1,5 @@
 ```md
-# 🦯 Detecção de Piso Tátil - Processamento de Imagens
+## 🦯 Detecção de Piso Tátil - Processamento de Imagens
 
 Este projeto realiza a **detecção de pisos táteis** utilizando o **modelo YOLOv5 treinado**, integrado com **Django** e publicado na **internet** via **ngrok**, permitindo acesso remoto e análise em tempo real.
 
