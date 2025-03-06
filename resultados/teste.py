@@ -28,16 +28,17 @@ def detect_piso_tatil(image_path, model_path="/home/davicortes_oliveira1/piso_ta
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
 
-    # Garantir que a entrada do modelo é (1, 640, 640, 3)
+    # Garantir que a entrada do modelo é (1, 3, 640, 640)
     input_shape = input_details[0]['shape']
-    if len(input_shape) != 4 or input_shape[1] != 640 or input_shape[2] != 640 or input_shape[3] != 3:
-        raise ValueError(f"🚨 O modelo espera entrada (1, 640, 640, 3), mas recebeu {input_shape}")
+    if list(input_shape) != [1, 3, 640, 640]:
+        raise ValueError(f"🚨 O modelo espera entrada (1, 3, 640, 640), mas recebeu {input_shape}")
 
     # Carregar e pré-processar a imagem
     image = cv2.imread(image_path)
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Converter para RGB
     image_resized = cv2.resize(image_rgb, (640, 640))  # Redimensionar para 640x640
-    image_input = np.expand_dims(image_resized / 255.0, axis=0).astype(np.float32)  # Normalizar e formatar
+    image_transposed = np.transpose(image_resized, (2, 0, 1))  # Reorganizar para (3, 640, 640)
+    image_input = np.expand_dims(image_transposed / 255.0, axis=0).astype(np.float32)  # Normalizar e formatar
 
     # Definir a entrada do modelo
     interpreter.set_tensor(input_details[0]['index'], image_input)
