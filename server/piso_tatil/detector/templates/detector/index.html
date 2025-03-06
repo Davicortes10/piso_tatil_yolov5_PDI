@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="">
+    <title>Piso Tátil - Identificação</title>
+    <script>
+        let isSpeaking = false; // Controle de áudio
+        let lastSpokenClass = ""; // Evita repetição excessiva do mesmo aviso
+        let currentStream = null; // Armazena a câmera ativa
+        let isProcessing = false; // Evita múltiplas requisições simultâneas
+
+        // Função para solicitar permissão e listar todas as câmeras disponíveis
+        async function getCameras() {
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true });
+
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === "videoinput");
+
+                const cameraSelect = document.getElementById("cameraSelect");
+                cameraSelect.innerHTML = ""; // Limpar opções anteriores
+
+                if (videoDevices.length === 0) {
+                    console.error("Nenhuma câmera detectada.");
+                    alert("Nenhuma câmera detectada. Verifique as permissões.");
+                    return;
+                }
+
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement("option");
+                    option.value = device.deviceId;
+                    option.text = device.label || `Câmera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+
+                // Ativar a primeira câmera automaticamente
+                if (videoDevices.length > 0) {
+                    startCamera(videoDevices[0].deviceId);
+                }
+            } catch (err) {
+                console.error("Erro ao acessar as câmeras:", err);
+                alert("Erro ao acessar a câmera. Verifique as permissões.");
+            }
+        }
+
+        // Função para iniciar a câmera selecionada
+        async function startCamera(deviceId = null) {
+            const video = document.getElementById("video");
+            const cameraSelect = document.getElementById("cameraSelect");
+
+            if (!deviceId) {
+                deviceId = cameraSelect.value;
+                if (!deviceId) {
+                    alert("Selecione uma câmera primeiro.");
+                    return;
+                }
+            }
+
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            try {
+                const constraints = {
+                    video: {
+                        deviceId: { exact: deviceId },
+                        width: { ideal: 640 },
+                        height: { ideal: 640 }
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                currentStream = stream;
+
+                // Iniciar captura automática
+                startRealTimeDetection();
+            } catch (err) {
+                console.error("Erro ao acessar a câmera:", err);
+                alert("Erro ao acessar a câmera. Verifique as permissões.");
+            }
+        }
+
+        // Captura imagens continuamente a cada 2 segundos
+        function startRealTimeDetection() {
+            setInterval(() => {
+                if (!isProcessing) {
+                    captureImage();
+                }
+            }, 2000); // Ajuste o tempo de captura conforme necessário
+        }
+
+        function captureImage() {
+            const video = document.getElementById("video");
+            const canvas = document.createElement("canvas");
+            canvas.width = 640;
+            canvas.height = 640;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(sendImageToAPI, "image/jpeg");
+        }
+
+        async function sendImageToAPI(imageBlob) {
+            if (isProcessing) return;
+            isProcessing = true; // Evita requisições múltiplas simultâneas
+
+            let formData = new FormData();
+            formData.append("image", imageBlob, "frame.jpg");
+
+            const csrfToken = document.querySelector("meta[name='csrf-token']")?.getAttribute("content");
+
+            const apiURL = "https://19e8-2804-14f8-407-1500-d012-2b40-dc99-634a.ngrok-free.app/api/detectar/"; // Substitua pela URL do Ngrok
+
+            try {
+                const response = await fetch(apiURL, {
+                    method: "POST",
+                    body: formData,
+                    headers: csrfToken ? { "X-CSRFToken": csrfToken } : {},
+                    credentials: "include"
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erro na API (${response.status} - ${response.statusText})`);
+                }
+
+                const result = await response.json();
+
+                if (result.classe_detectada) {
+                    document.getElementById("result").innerText = "Classe detectada: " + result.classe_detectada;
+                    handleDetectedClass(result.classe_detectada);
+                } else {
+                    document.getElementById("result").innerText = "Nenhuma detecção realizada.";
+                }
+            } catch (error) {
+                console.error("Erro ao enviar imagem:", error);
+                alert("Erro ao processar imagem. Verifique a conexão com o servidor.");
+            } finally {
+                isProcessing = false; // Libera para a próxima captura
+            }
+        }
+
+        function handleDetectedClass(detectedClass) {
+            let message = "";
+            switch (detectedClass) {
+                case "frente":
+                    message = "Siga em frente";
+                    break;
+                case "direita":
+                    message = "Piso Tátil Direito detectado";
+                    break;
+                case "esquerda":
+                    message = "Piso Tátil Esquerdo detectado";
+                    break;
+                case "parar":
+                    message = "Atenção, piso Parar detectado à frente";
+                    break;
+                case "placa_faltante":
+                    message = "Placa Faltante detectada à frente";
+                    break;
+                case "placa_not":
+                    message = "Atenção, nenhuma placa detectada!";
+                    break;
+                default:
+                    return;
+            }
+
+            if (message && detectedClass !== lastSpokenClass) {
+                speak(message);
+                lastSpokenClass = detectedClass; // Atualiza a última classe falada para evitar repetições
+            }
+        }
+
+        function speak(text) {
+            if (isSpeaking) return;
+            isSpeaking = true;
+
+            const speech = new SpeechSynthesisUtterance(text);
+            speech.lang = "pt-BR";
+            speech.onend = () => {
+                isSpeaking = false;
+            };
+            window.speechSynthesis.speak(speech);
+        }
+
+        getCameras();
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        video {
+            width: 100%;
+            max-width: 90vw;
+            max-height: 50vh;
+            border: 2px solid black;
+            border-radius: 10px;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 400px;
+            margin-top: 10px;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        #result {
+            margin-top: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: blue;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.2rem;
+            }
+            button, select {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Identificação do Piso Tátil</h1>
+    <video id="video" autoplay playsinline></video>
+    <div class="controls">
+        <select id="cameraSelect"></select>
+        <button onclick="startCamera()">Ativar Câmera</button>
+    </div>
+    <p id="result">Aguardando detecção...</p>
+</body>
+</html>
