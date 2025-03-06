@@ -3,7 +3,8 @@ import cv2
 import numpy as np
 import tensorflow as tf
 
-def detect_piso_tatil(image_path, model_path="/home/davicortes_oliveira1/piso_tatil_yolov5_PDI/yolov5_tf_select.tflite", output_dir="/home/davicortes_oliveira1/piso_tatil_yolov5_PDI/resultados", confidence_threshold=0.5):
+def detect_piso_tatil(image_path, model_path="/home/davicortes_oliveira1/piso_tatil_yolov5_PDI/yolov5_tf_select.tflite",
+                      output_dir="/home/davicortes_oliveira1/piso_tatil_yolov5_PDI/resultados", confidence_threshold=0.5):
     """
     Detecta piso tátil em uma imagem usando um modelo YOLOv5 convertido para TensorFlow Lite e salva o resultado.
 
@@ -27,14 +28,16 @@ def detect_piso_tatil(image_path, model_path="/home/davicortes_oliveira1/piso_ta
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
 
-    # Definir tamanho esperado da entrada do modelo
-    input_shape = input_details[0]['shape'][1:3]  # (altura, largura)
+    # Garantir que a entrada do modelo é (1, 640, 640, 3)
+    input_shape = input_details[0]['shape']
+    if len(input_shape) != 4 or input_shape[1] != 640 or input_shape[2] != 640 or input_shape[3] != 3:
+        raise ValueError(f"🚨 O modelo espera entrada (1, 640, 640, 3), mas recebeu {input_shape}")
 
     # Carregar e pré-processar a imagem
     image = cv2.imread(image_path)
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Converter para RGB
-    image_resized = cv2.resize(image_rgb, (input_shape[1], input_shape[0]))  # Redimensionar
-    image_input = np.expand_dims(image_resized / 255.0, axis=0).astype(np.float32)  # Normalizar
+    image_resized = cv2.resize(image_rgb, (640, 640))  # Redimensionar para 640x640
+    image_input = np.expand_dims(image_resized / 255.0, axis=0).astype(np.float32)  # Normalizar e formatar
 
     # Definir a entrada do modelo
     interpreter.set_tensor(input_details[0]['index'], image_input)
