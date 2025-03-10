@@ -6,3 +6,5 @@ numpy
 pillow
 django-cors-headers
 gunicorn
+pyngrok
+ngrok
